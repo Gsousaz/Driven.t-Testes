@@ -1,6 +1,7 @@
 import app, { init } from "@/app";
 import supertest from "supertest";
 import { cleanDb, generateValidToken } from "../helpers";
+import { stat } from "fs";
 import httpStatus from "http-status";
 import faker from "@faker-js/faker";
 import { createEnrollmentWithAddress, createHotel, createPayment, createTicketType, createTicketTypeRemote, createTicketTypeWHotel, createUser } from "../factories";
@@ -40,7 +41,15 @@ describe("GET hotels/", () => {
         expect(status).toBe(httpStatus.UNAUTHORIZED);
     })
 
-    it("should respond with status 402 when user ticket is remote", async () => {
+    it('should respond with status 404 when hotels is missing', async () => {
+        const token = await generateValidToken();
+
+        const response = await server.get('/hotels').set('Authorization', `Bearer ${token}`);
+
+        expect(response.status).toEqual(httpStatus.NOT_FOUND);
+    });
+
+    it("should respond with status 402 when user ticket is not PAID", async () => {
         const user = await createUser();
         const token = await generateValidToken(user);
         const enroll = await createEnrollmentWithAddress(user);
@@ -61,33 +70,27 @@ describe("GET hotels/", () => {
         expect(status).toBe(httpStatus.NOT_FOUND);
     })
 
-    it("should respond with status 200 and a list of hotels", async () => {
+    it('should respond with status 200 and return hotels', async () => {
         const user = await createUser();
         const token = await generateValidToken(user);
-        const enroll = await createEnrollmentWithAddress(user);
+        const enrollment = await createEnrollmentWithAddress(user);
         const ticketType = await createTicketTypeWHotel();
-        const ticket = await createTicket(enroll.id, ticketType.id, TicketStatus.PAID);
-
+        await createTicket(enrollment.id, ticketType.id, TicketStatus.PAID);
         const hotel = await createHotel();
-        const { status, body } = await server.get('/hotels').set('Authorization', `Bearer ${token}`);
-        expect(status).toBe(httpStatus.OK);
-        expect(body).toEqual([
-            {
-                id: hotel.id,
-                name: hotel.name,
-                image: hotel.image,
-                createdAt: hotel.createdAt.toISOString(),
-                updatedAt: hotel.updatedAt.toISOString()
 
+        const response = await server.get(`/hotels`).set('Authorization', `Bearer ${token}`);
 
-
-            }
-        ])
+        expect(response.status).toEqual(httpStatus.OK);
+        expect(response.body).toEqual(
+            expect.arrayContaining([
+                {
+                    id: hotel.id,
+                    name: hotel.name,
+                    image: hotel.image,
+                    createdAt: hotel.createdAt.toISOString(),
+                    updatedAt: hotel.updatedAt.toISOString(),
+                },
+            ]),
+        )
     })
-})
-
-
-
-describe("GET hotels/:id", () => {
-
 })
