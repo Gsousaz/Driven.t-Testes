@@ -10,6 +10,13 @@ async function listHotels(userId: number) {
     return hotels;
 }
 
+async function listHotelRooms(userId: number, hotelId: number) {
+    await verifyHotels(userId);
+    const hotel = await hotelsRepository.listHotelRooms(hotelId);
+    return hotel;
+}
+
+
 async function verifyHotels(userId: number) {
     const enroll = await enrollmentRepository.findWithAddressByUserId(userId);
     if (!enroll) {
@@ -24,5 +31,6 @@ async function verifyHotels(userId: number) {
 
 
 export const hotelsService = {
-    listHotels
+    listHotels,
+    listHotelRooms
 }
